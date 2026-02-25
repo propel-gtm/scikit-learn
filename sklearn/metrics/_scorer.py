@@ -89,7 +89,35 @@ from sklearn.utils.validation import _check_response_method
 
 
 def _cached_call(cache, estimator, response_method, *args, **kwargs):
-    """Call estimator with method and args and kwargs."""
+    """Call estimator with method and args and kwargs.
+
+    Uses an optional cache to avoid redundant calls to predict, predict_proba,
+    or decision_function when multiple scorers are evaluated on the same
+    estimator.
+
+    Parameters
+    ----------
+    cache : dict or None
+        Optional cache mapping response_method names to results.
+        If None, no caching is performed.
+
+    estimator : estimator instance
+        The fitted estimator to call.
+
+    response_method : str
+        Name of the response method to call (e.g., 'predict', 'predict_proba').
+
+    *args : list
+        Positional arguments passed through to the response method.
+
+    **kwargs : dict
+        Keyword arguments passed through to the response method.
+
+    Returns
+    -------
+    result : array-like
+        The result of the response method call.
+    """
     if cache is not None and response_method in cache:
         return cache[response_method]
 
@@ -103,10 +131,21 @@ def _cached_call(cache, estimator, response_method, *args, **kwargs):
     return result
 
 
-def _get_func_repr_or_name(func):
-    """Returns the name of the function or repr of a partial."""
+def _get_func_repr_or_name(func) -> str:
+    """Return the name of the function or repr of a partial.
+
+    Parameters
+    ----------
+    func : callable
+        A scoring function or partial thereof.
+
+    Returns
+    -------
+    name : str
+        The function name or string representation for display.
+    """
     if isinstance(func, partial):
-        return repr(func)
+        return getattr(func.func, "__name__", repr(func))
 
     return func.__name__
 
