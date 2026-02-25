@@ -1,6 +1,10 @@
 """
 The :mod:`sklearn.model_selection._split` module includes classes and
 functions to split the data based on a preset strategy.
+
+This module provides various cross-validation splitters for dividing
+data into training and testing sets, including k-fold, stratified,
+group-based, and shuffle-based splitting strategies.
 """
 
 # Authors: The scikit-learn developers
@@ -162,8 +166,25 @@ class BaseCrossValidator(_MetadataRequester, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_n_splits(self, X=None, y=None, groups=None):
-        """Returns the number of splitting iterations in the cross-validator."""
+    def get_n_splits(self, X=None, y=None, groups=None) -> int:
+        """Return the number of splitting iterations in the cross-validator.
+
+        Parameters
+        ----------
+        X : object, default=None
+            Training data. Ignored in most splitters.
+
+        y : object, default=None
+            Target variable. Ignored in most splitters.
+
+        groups : object, default=None
+            Group labels. Used by group-based splitters.
+
+        Returns
+        -------
+        n_splits : int
+            The number of train/test splits.
+        """
 
     def __repr__(self):
         return _build_repr(self)

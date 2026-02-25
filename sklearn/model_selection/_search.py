@@ -1,6 +1,10 @@
 """
 The :mod:`sklearn.model_selection._search` includes utilities to fine-tune the
 parameters of an estimator.
+
+This module provides grid search and randomized search implementations for
+hyperparameter optimization, with support for cross-validation, multiple
+scoring metrics, and parallel execution.
 """
 
 # Authors: The scikit-learn developers
@@ -67,9 +71,10 @@ __all__ = ["GridSearchCV", "ParameterGrid", "ParameterSampler", "RandomizedSearc
 class ParameterGrid:
     """Grid of parameters with a discrete number of values for each.
 
-    Can be used to iterate over parameter value combinations with the
-    Python built-in function iter.
-    The order of the generated parameter combinations is deterministic.
+    Provides an iterable over all possible parameter value combinations.
+    Can be used with the Python built-in function iter or in a for loop.
+    The order of the generated parameter combinations is deterministic
+    and reproducible across runs.
 
     Read more in the :ref:`User Guide <grid_search>`.
 

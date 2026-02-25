@@ -1,6 +1,10 @@
 """
 The :mod:`sklearn.model_selection._validation` module includes classes and
 functions to validate the model.
+
+This module provides tools for evaluating estimator performance using
+cross-validation, including functions for computing scores, predictions,
+learning curves, and validation curves.
 """
 
 # Authors: The scikit-learn developers
@@ -62,7 +66,19 @@ __all__ = [
 
 # TODO(SLEP6): To be removed when set_config(enable_metadata_routing=False) is not
 # possible.
-def _check_groups_routing_disabled(groups):
+def _check_groups_routing_disabled(groups: np.ndarray = None) -> None:
+    """Validate that groups parameter is not used when routing is enabled.
+
+    Parameters
+    ----------
+    groups : array-like of shape (n_samples,) or None
+        Group labels for samples.
+
+    Raises
+    ------
+    ValueError
+        If groups is provided and metadata routing is enabled.
+    """
     if groups is not None and _routing_enabled():
         raise ValueError(
             "`groups` can only be passed if metadata routing is not enabled via"
