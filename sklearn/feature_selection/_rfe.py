@@ -1,7 +1,11 @@
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Recursive feature elimination for feature ranking"""
+"""Recursive feature elimination for feature ranking.
+
+RFE and RFECV iteratively remove the least important features based on
+estimator weights and optionally use cross-validation for optimal selection.
+"""
 
 import warnings
 from copy import deepcopy
@@ -44,6 +48,9 @@ from sklearn.utils.validation import (
 def _rfe_single_fit(rfe, estimator, X, y, train, test, scorer, routed_params):
     """
     Return the score and n_features per step for a fit across one fold.
+
+    Fits the RFE on the training split and evaluates on the test split,
+    returning the step-wise scores, support masks, rankings, and feature counts.
     """
     X_train, y_train = _safe_split(estimator, X, y, train)
     X_test, y_test = _safe_split(estimator, X, y, test, train)

@@ -1,4 +1,9 @@
-"""Generic feature selection mixin"""
+"""Generic feature selection mixin.
+
+SelectorMixin provides the common interface for feature selectors that
+determine a support mask via _get_support_mask and expose transform,
+inverse_transform, and get_support methods.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -49,7 +54,7 @@ class SelectorMixin(TransformerMixin, metaclass=ABCMeta):
     (150, 2)
     """
 
-    def get_support(self, indices=False):
+    def get_support(self, indices: bool = False):
         """
         Get a mask, or integer index, of the features selected.
 
@@ -57,7 +62,7 @@ class SelectorMixin(TransformerMixin, metaclass=ABCMeta):
         ----------
         indices : bool, default=False
             If True, the return value will be an array of integers, rather
-            than a boolean mask.
+            than a boolean mask. Useful for indexing into feature arrays.
 
         Returns
         -------

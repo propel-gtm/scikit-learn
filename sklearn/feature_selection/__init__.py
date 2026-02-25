@@ -1,7 +1,8 @@
 """Feature selection algorithms.
 
-These include univariate filter selection methods and the recursive feature elimination
-algorithm.
+This module includes univariate filter selection methods (VarianceThreshold,
+SelectKBest), model-based selection (SelectFromModel), recursive feature
+elimination (RFE, RFECV), and sequential feature selection.
 """
 
 # Authors: The scikit-learn developers

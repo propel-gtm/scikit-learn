@@ -1,6 +1,12 @@
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Model-based feature selection.
+
+SelectFromModel selects features based on importance weights from a fitted
+estimator, supporting both tree-based importance and linear model coefficients.
+"""
+
 from copy import deepcopy
 from numbers import Integral, Real
 
