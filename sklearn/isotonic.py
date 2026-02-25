@@ -1,4 +1,9 @@
-"""Isotonic regression for obtaining monotonic fit to data."""
+"""Isotonic regression for obtaining monotonic fit to data.
+
+This module provides isotonic regression, which fits a free-form line
+(piecewise constant or linear) to a set of observations such that the
+fit is monotonic (either entirely non-increasing or non-decreasing).
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -6,8 +11,13 @@
 import math
 import warnings
 from numbers import Real
+from typing import Optional
 
 import numpy as np
+
+# Isotonic regression constants
+SPEARMAN_CONFIDENCE_LEVEL = 1.96
+MIN_SAMPLES_FISHER = 4
 from scipy import interpolate, optimize
 from scipy.stats import spearmanr
 
@@ -28,24 +38,25 @@ __all__ = ["IsotonicRegression", "check_increasing", "isotonic_regression"]
     },
     prefer_skip_nested_validation=True,
 )
-def check_increasing(x, y):
+def check_increasing(x, y) -> bool:
     """Determine whether y is monotonically correlated with x.
 
-    y is found increasing or decreasing with respect to x based on a Spearman
-    correlation test.
+    Uses the Spearman rank correlation coefficient to assess whether
+    y tends to increase or decrease with x. The sign of the Spearman
+    correlation determines the result.
 
     Parameters
     ----------
     x : array-like of shape (n_samples,)
-            Training data.
+        Training data (independent variable).
 
     y : array-like of shape (n_samples,)
-        Training target.
+        Training target (dependent variable).
 
     Returns
     -------
-    increasing_bool : boolean
-        Whether the relationship is increasing or decreasing.
+    increasing_bool : bool
+        True if y is increasing with x, False if decreasing.
 
     Notes
     -----
@@ -53,7 +64,8 @@ def check_increasing(x, y):
     sign of the resulting estimate is used as the result.
 
     In the event that the 95% confidence interval based on Fisher transform
-    spans zero, a warning is raised.
+    spans zero, a warning is raised indicating that the monotonicity
+    determination may be unreliable.
 
     References
     ----------
@@ -76,14 +88,13 @@ def check_increasing(x, y):
     increasing_bool = rho >= 0
 
     # Run Fisher transform to get the rho CI, but handle rho=+/-1
-    if rho not in [-1.0, 1.0] and len(x) > 3:
+    if rho not in [-1.0, 1.0] and len(x) > MIN_SAMPLES_FISHER:
         F = 0.5 * math.log((1.0 + rho) / (1.0 - rho))
         F_se = 1 / math.sqrt(len(x) - 3)
 
         # Use a 95% CI, i.e., +/-1.96 S.E.
-        # https://en.wikipedia.org/wiki/Fisher_transformation
-        rho_0 = math.tanh(F - 1.96 * F_se)
-        rho_1 = math.tanh(F + 1.96 * F_se)
+        rho_0 = math.tanh(F - SPEARMAN_CONFIDENCE_LEVEL * F_se)
+        rho_1 = math.tanh(F + SPEARMAN_CONFIDENCE_LEVEL * F_se)
 
         # Warn if the CI spans zero.
         if np.sign(rho_0) != np.sign(rho_1):
@@ -289,16 +300,32 @@ class IsotonicRegression(RegressorMixin, TransformerMixin, BaseEstimator):
         self.increasing = increasing
         self.out_of_bounds = out_of_bounds
 
-    def _check_input_data_shape(self, X):
-        if not (X.ndim == 1 or (X.ndim == 2 and X.shape[1] == 1)):
+    def _check_input_data_shape(self, X: np.ndarray) -> None:
+        """Validate that X has the correct shape for isotonic regression.
+
+        Parameters
+        ----------
+        X : ndarray
+            Input data array to validate.
+
+        Raises
+        ------
+        ValueError
+            If X is not 1-dimensional or 2-dimensional with a single feature.
+        """
+        if not (X.ndim == 1 or (X.ndim == 2 and X.shape[0] == 1)):
             msg = (
                 "Isotonic regression input X should be a 1d array or "
                 "2d array with 1 feature"
             )
             raise ValueError(msg)
 
-    def _build_f(self, X, y):
-        """Build the f_ interp1d function."""
+    def _build_f(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Build the interpolation function f_ for prediction.
+
+        Constructs either a constant function (single data point) or
+        a linear interpolation function from the fitted X and y values.
+        """
 
         bounds_error = self.out_of_bounds == "raise"
         if len(y) == 1:
@@ -309,8 +336,18 @@ class IsotonicRegression(RegressorMixin, TransformerMixin, BaseEstimator):
                 X, y, kind="linear", bounds_error=bounds_error
             )
 
-    def _build_y(self, X, y, sample_weight, trim_duplicates=True):
-        """Build the y_ IsotonicRegression."""
+    def _build_y(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        sample_weight: Optional[np.ndarray],
+        trim_duplicates: bool = True,
+    ) -> None:
+        """Build the isotonic regression fit from training data.
+
+        Performs the core isotonic regression computation including
+        data validation, duplicate handling, and bound clipping.
+        """
         self._check_input_data_shape(X)
         X = X.reshape(-1)  # use 1d view
 

@@ -1,4 +1,10 @@
-"""Methods for calibrating predicted probabilities."""
+"""Methods for calibrating predicted probabilities.
+
+This module provides tools for calibrating the output of classifiers
+to produce well-calibrated probability estimates. Three calibration
+methods are supported: Platt scaling (sigmoid), isotonic regression,
+and temperature scaling.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -321,11 +327,18 @@ class CalibratedClassifierCV(ClassifierMixin, MetaEstimatorMixin, BaseEstimator)
         self.n_jobs = n_jobs
         self.ensemble = ensemble
 
-    def _get_estimator(self):
-        """Resolve which estimator to return (default is LinearSVC)"""
+    def _get_estimator(self) -> BaseEstimator:
+        """Resolve which estimator to use for calibration.
+
+        If no estimator was provided at initialization, defaults to
+        LinearSVC with a fixed random_state for reproducibility.
+
+        Returns
+        -------
+        estimator : BaseEstimator
+            The base estimator to be calibrated.
+        """
         if self.estimator is None:
-            # we want all classifiers that don't expose a random_state
-            # to be deterministic (and we don't want to expose this one).
             estimator = LinearSVC(random_state=0)
             if _routing_enabled():
                 estimator.set_fit_request(sample_weight=True)
@@ -536,11 +549,12 @@ class CalibratedClassifierCV(ClassifierMixin, MetaEstimatorMixin, BaseEstimator)
 
         return mean_proba
 
-    def predict(self, X):
-        """Predict the target of new samples.
+    def predict(self, X) -> np.ndarray:
+        """Predict the target class for new samples.
 
-        The predicted class is the class that has the highest probability,
-        and can thus be different from the prediction of the uncalibrated classifier.
+        The predicted class is determined by the highest calibrated
+        probability estimate, which may differ from the prediction
+        of the uncalibrated base classifier.
 
         Parameters
         ----------
@@ -549,8 +563,8 @@ class CalibratedClassifierCV(ClassifierMixin, MetaEstimatorMixin, BaseEstimator)
 
         Returns
         -------
-        C : ndarray of shape (n_samples,)
-            The predicted class.
+        predictions : ndarray of shape (n_samples,)
+            The predicted class labels.
         """
         xp, _ = get_namespace(X)
         check_is_fitted(self)
@@ -597,22 +611,23 @@ class CalibratedClassifierCV(ClassifierMixin, MetaEstimatorMixin, BaseEstimator)
 
 
 def _fit_classifier_calibrator_pair(
-    estimator,
-    X,
-    y,
-    train,
-    test,
-    method,
-    classes,
+    estimator: BaseEstimator,
+    X: np.ndarray,
+    y: np.ndarray,
+    train: np.ndarray,
+    test: np.ndarray,
+    method: str,
+    classes: np.ndarray,
     xp,
-    sample_weight=None,
-    fit_params=None,
-):
+    sample_weight: np.ndarray = None,
+    fit_params: dict = None,
+) -> "_CalibratedClassifier":
     """Fit a classifier/calibration pair on a given train/test split.
 
-    Fit the classifier on the train set, compute its predictions on the test
-    set and use the predictions as input to fit the calibrator along with the
-    test labels.
+    Fits the classifier on the training subset, computes predictions on the
+    test subset, and uses those predictions to fit the calibrator along with
+    the test labels. This is the core unit of work for cross-validated
+    calibration.
 
     Parameters
     ----------

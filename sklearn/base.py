@@ -1,4 +1,9 @@
-"""Base classes for all estimators and various utility functions."""
+"""Base classes for all estimators and various utility functions.
+
+This module defines the foundational BaseEstimator class that provides
+common functionality for all scikit-learn estimators, including parameter
+management, cloning, and representation.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -41,12 +46,12 @@ from sklearn.utils.validation import (
 )
 
 
-def clone(estimator, *, safe=True):
+def clone(estimator, *, safe: bool = True):
     """Construct a new unfitted estimator with the same parameters.
 
-    Clone does a deep copy of the model in an estimator
-    without actually copying attached data. It returns a new estimator
-    with the same parameters that has not been fitted on any data.
+    Creates a deep copy of the estimator's parameters without copying
+    fitted attributes. Returns a new estimator instance with identical
+    configuration that has not been fitted on any data.
 
     .. versionchanged:: 1.3
         Delegates to `estimator.__sklearn_clone__` if the method exists.
@@ -236,9 +241,11 @@ class BaseEstimator(ReprHTMLMixin, _HTMLDocumentationLinkMixin, _MetadataRequest
         # Extract and sort argument names excluding 'self'
         return sorted([p.name for p in parameters])
 
-    def get_params(self, deep=True):
-        """
-        Get parameters for this estimator.
+    def get_params(self, deep: bool = True) -> dict:
+        """Get parameters for this estimator.
+
+        Introspects the estimator's __init__ signature to determine which
+        parameters are available and returns their current values.
 
         Parameters
         ----------
