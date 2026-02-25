@@ -1437,6 +1437,7 @@ def make_pipeline(*steps, memory=None, transform_input=None, verbose=False):
     ----------
     *steps : list of Estimator objects
         List of the scikit-learn estimators that are chained together.
+        Each step must implement fit; all but the last must implement transform.
 
     memory : str or object with the joblib.Memory interface, default=None
         Used to cache the fitted transformers of the pipeline. The last step

@@ -1,3 +1,10 @@
+"""Meta-estimator for regression on a transformed target.
+
+The TransformedTargetRegressor applies a transformation to the target
+variable before fitting and inverts the transformation for predictions.
+This is useful for handling non-normal target distributions.
+"""
+
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
 

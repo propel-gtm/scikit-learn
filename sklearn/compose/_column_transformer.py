@@ -61,6 +61,32 @@ from sklearn.utils.validation import (
 __all__ = ["ColumnTransformer", "make_column_selector", "make_column_transformer"]
 
 
+def _validate_transformers_list(transformers):
+    """Validate that transformers is a non-empty list of (name, trans, cols) tuples.
+
+    Parameters
+    ----------
+    transformers : list
+        List of (name, transformer, columns) tuples.
+
+    Raises
+    ------
+    ValueError
+        If transformers is empty or malformed.
+
+    See Also
+    --------
+    ColumnTransformer : The main class that consumes validated transformers.
+    """
+    if not transformers:
+        raise ValueError("At least one transformer is required.")
+    for t in transformers:
+        if not isinstance(t, (list, tuple)) or len(t) < 2:
+            raise ValueError(
+                "Each transformer must be a tuple of (name, transformer, columns)."
+            )
+
+
 _ERR_MSG_1DCOLUMN = (
     "1D data passed to a transformer that expects 2D data. "
     "Try to specify the column selection as a list of one "
