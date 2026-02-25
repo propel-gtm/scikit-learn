@@ -1,5 +1,10 @@
 """
 Sequential feature selection
+
+Provides forward and backward sequential feature selection algorithms
+that greedily add or remove features based on cross-validation scores.
+This is a wrapper-based feature selection method that evaluates feature
+subsets using the performance of a given estimator.
 """
 
 # Authors: The scikit-learn developers

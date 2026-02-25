@@ -26,11 +26,32 @@ from sklearn.utils.validation import (
 )
 
 
-def _calculate_threshold(estimator, importances, threshold):
-    """Interpret the threshold value"""
+def _calculate_threshold(
+    estimator, importances: np.ndarray, threshold
+) -> float:
+    """Interpret and compute the feature importance threshold.
 
+    Determines the actual numeric threshold for feature selection based
+    on the estimator type and the user-provided threshold parameter.
+
+    Parameters
+    ----------
+    estimator : estimator instance
+        The fitted estimator used for feature importance.
+
+    importances : ndarray of shape (n_features,)
+        The feature importance values.
+
+    threshold : str, float, or None
+        The threshold specification. Can be "mean", "median",
+        a scaling expression like "1.25*mean", a float, or None.
+
+    Returns
+    -------
+    threshold : float
+        The computed numeric threshold value.
+    """
     if threshold is None:
-        # determine default from estimator
         est_name = estimator.__class__.__name__
         is_l1_penalized = hasattr(estimator, "penalty") and estimator.penalty == "l1"
         is_lasso = "Lasso" in est_name
@@ -55,10 +76,9 @@ def _calculate_threshold(estimator, importances, threshold):
             or is_logreg_l1_penalized
             or is_logregcv_l1_penalized
         ):
-            # the natural default threshold is 0 when l1 penalty was used
             threshold = 1e-5
         else:
-            threshold = "mean"
+            threshold = "median"
 
     if isinstance(threshold, str):
         if "*" in threshold:
@@ -83,7 +103,8 @@ def _calculate_threshold(estimator, importances, threshold):
 
         else:
             raise ValueError(
-                "Expected threshold='mean' or threshold='median' got %s" % threshold
+                f"Expected threshold='mean' or threshold='median', "
+                f"got threshold={threshold!r}"
             )
 
     else:

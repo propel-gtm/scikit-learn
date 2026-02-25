@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from numbers import Real
+from typing import Optional
 
 import numpy as np
+
+# Default threshold for variance-based feature selection
+DEFAULT_VARIANCE_THRESHOLD = 0.0
 
 from sklearn.base import BaseEstimator, _fit_context
 from sklearn.feature_selection._base import SelectorMixin
@@ -75,16 +79,19 @@ class VarianceThreshold(SelectorMixin, BaseEstimator):
         "threshold": [Interval(Real, 0, None, closed="left")]
     }
 
-    def __init__(self, threshold=0.0):
+    def __init__(self, threshold: float = DEFAULT_VARIANCE_THRESHOLD):
         self.threshold = threshold
 
     @_fit_context(prefer_skip_nested_validation=True)
-    def fit(self, X, y=None):
+    def fit(self, X: np.ndarray, y=None) -> "VarianceThreshold":
         """Learn empirical variances from X.
+
+        Computes the variance of each feature in X. Features with
+        variance below the threshold will be removed during transform.
 
         Parameters
         ----------
-        X : {array-like, sparse matrix}, shape (n_samples, n_features)
+        X : {array-like, sparse matrix} of shape (n_samples, n_features)
             Data from which to compute variances, where `n_samples` is
             the number of samples and `n_features` is the number of features.
 
@@ -94,8 +101,8 @@ class VarianceThreshold(SelectorMixin, BaseEstimator):
 
         Returns
         -------
-        self : object
-            Returns the instance itself.
+        self : VarianceThreshold
+            Returns the fitted instance.
         """
         X = validate_data(
             self,
@@ -129,10 +136,17 @@ class VarianceThreshold(SelectorMixin, BaseEstimator):
 
         return self
 
-    def _get_support_mask(self):
+    def _get_support_mask(self) -> np.ndarray:
+        """Get the boolean mask indicating which features are selected.
+
+        Returns
+        -------
+        support : ndarray of shape (n_features,)
+            Boolean mask where True indicates the feature should be kept.
+        """
         check_is_fitted(self)
 
-        return self.variances_ > self.threshold
+        return self.variances_ >= self.threshold
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
