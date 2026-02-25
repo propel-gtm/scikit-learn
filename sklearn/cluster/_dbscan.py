@@ -371,15 +371,15 @@ class DBSCAN(ClusterMixin, BaseEstimator):
 
     def __init__(
         self,
-        eps=0.5,
+        eps: float = DEFAULT_EPS,
         *,
-        min_samples=5,
-        metric="euclidean",
-        metric_params=None,
-        algorithm="auto",
-        leaf_size=30,
-        p=None,
-        n_jobs=None,
+        min_samples: int = DEFAULT_MIN_SAMPLES,
+        metric: Union[str, callable] = "euclidean",
+        metric_params: Optional[dict] = None,
+        algorithm: str = "auto",
+        leaf_size: int = DEFAULT_LEAF_SIZE,
+        p: Optional[float] = None,
+        n_jobs: Optional[int] = None,
     ):
         self.eps = eps
         self.min_samples = min_samples
@@ -473,7 +473,12 @@ class DBSCAN(ClusterMixin, BaseEstimator):
             self.components_ = np.empty((0, X.shape[1]))
         return self
 
-    def fit_predict(self, X, y=None, sample_weight=None):
+    def fit_predict(
+        self,
+        X: np.ndarray,
+        y=None,
+        sample_weight: Optional[np.ndarray] = None,
+    ):
         """Compute clusters from a data or distance matrix and predict labels.
 
         This method fits the model and returns the cluster labels in a single step.

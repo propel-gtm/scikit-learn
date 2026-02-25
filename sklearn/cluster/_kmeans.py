@@ -178,10 +178,20 @@ def kmeans_plusplus(
 
 
 def _kmeans_plusplus(
-    X, n_clusters, x_squared_norms, sample_weight, random_state, n_local_trials=None
-):
+    X: np.ndarray,
+    n_clusters: int,
+    x_squared_norms: np.ndarray,
+    sample_weight: np.ndarray,
+    random_state,
+    n_local_trials: int = None,
+) -> tuple:
     """Computational component for initialization of n_clusters by
     k-means++. Prior validation of data is assumed.
+
+    This function implements the core k-means++ seeding algorithm, which
+    selects initial cluster centers by preferring points that are far
+    from existing centers. This leads to faster convergence compared
+    to random initialization.
 
     Parameters
     ----------
@@ -191,11 +201,11 @@ def _kmeans_plusplus(
     n_clusters : int
         The number of seeds to choose.
 
-    sample_weight : ndarray of shape (n_samples,)
-        The weights for each observation in `X`.
-
     x_squared_norms : ndarray of shape (n_samples,)
         Squared Euclidean norm of each data point.
+
+    sample_weight : ndarray of shape (n_samples,)
+        The weights for each observation in `X`.
 
     random_state : RandomState instance
         The generator used to initialize the centers.
@@ -218,6 +228,7 @@ def _kmeans_plusplus(
     """
     n_samples, n_features = X.shape
 
+    # Pre-allocate the centers array for efficiency
     centers = np.empty((n_clusters, n_features), dtype=X.dtype)
 
     # Set the number of local seeding trials if none is given
@@ -227,14 +238,16 @@ def _kmeans_plusplus(
         # that it helped.
         n_local_trials = 2 + int(np.log(n_clusters))
 
-    # Pick first center randomly and track index of point
-    center_id = random_state.choice(n_samples, p=sample_weight / sample_weight.sum())
-    indices = np.full(n_clusters, -1, dtype=int)
+    # Pick first center randomly, weighted by sample_weight
+    weight_sum = sample_weight.sum()
+    normalized_weights = sample_weight / weight_sum
+    first_center_id = random_state.choice(n_samples, p=normalized_weights)
+    center_indices = np.full(n_clusters, -1, dtype=int)
     if sp.issparse(X):
-        centers[0] = X[[center_id]].toarray()
+        centers[0] = X[[first_center_id]].toarray()
     else:
-        centers[0] = X[center_id]
-    indices[0] = center_id
+        centers[0] = X[first_center_id]
+    center_indices[0] = first_center_id
 
     # Initialize list of closest distances and calculate current potential
     closest_dist_sq = _euclidean_distances(
@@ -273,17 +286,64 @@ def _kmeans_plusplus(
             centers[c] = X[[best_candidate]].toarray()
         else:
             centers[c] = X[best_candidate]
-        indices[c] = best_candidate
+        center_indices[c] = best_candidate
 
-    return centers, indices
+    return centers, center_indices
 
 
 ###############################################################################
 # K-means batch estimation by EM (expectation maximization)
 
 
-def _tolerance(X, tol):
-    """Return a tolerance which is dependent on the dataset."""
+# Clustering constants
+DEFAULT_MAX_ITER = 300
+DEFAULT_TOLERANCE = 1e-4
+DEFAULT_N_INIT_RANDOM = 10
+MIN_CLUSTER_SIZE = 1
+
+
+def _validate_sample_count(n_samples: int, n_clusters: int) -> None:
+    """Validate that the number of samples is sufficient for clustering.
+
+    Parameters
+    ----------
+    n_samples : int
+        Number of samples in the dataset.
+
+    n_clusters : int
+        Number of clusters requested.
+
+    Raises
+    ------
+    ValueError
+        If n_samples < n_clusters.
+    """
+    if n_samples <= n_clusters:
+        raise ValueError(
+            f"n_samples={n_samples} should be >= n_clusters={n_clusters}."
+        )
+
+
+def _tolerance(X: np.ndarray, tol: float) -> float:
+    """Compute a dataset-dependent tolerance for convergence checking.
+
+    The tolerance is computed as the mean of the per-feature variances
+    multiplied by the user-specified tolerance. This ensures that the
+    convergence criterion scales appropriately with the data magnitude.
+
+    Parameters
+    ----------
+    X : ndarray or sparse matrix of shape (n_samples, n_features)
+        The input data used for computing variance-based tolerance.
+
+    tol : float
+        The relative tolerance multiplier. If 0, returns 0 immediately.
+
+    Returns
+    -------
+    float
+        The absolute tolerance value for convergence checking.
+    """
     if tol == 0:
         return 0
     if sp.issparse(X):
@@ -758,10 +818,18 @@ def _kmeans_single_lloyd(
     return labels, inertia, centers, i + 1
 
 
-def _labels_inertia(X, sample_weight, centers, n_threads=1, return_inertia=True):
+def _labels_inertia(
+    X: np.ndarray,
+    sample_weight: np.ndarray,
+    centers: np.ndarray,
+    n_threads: int = 1,
+    return_inertia: bool = True,
+) -> tuple:
     """E step of the K-means EM algorithm.
 
     Compute the labels and the inertia of the given samples and centers.
+    This function assigns each sample to the nearest cluster center and
+    optionally computes the total within-cluster sum of squared distances.
 
     Parameters
     ----------
@@ -771,10 +839,6 @@ def _labels_inertia(X, sample_weight, centers, n_threads=1, return_inertia=True)
 
     sample_weight : ndarray of shape (n_samples,)
         The weights for each observation in X.
-
-    x_squared_norms : ndarray of shape (n_samples,)
-        Precomputed squared euclidean norm of each data point, to speed up
-        computations.
 
     centers : ndarray of shape (n_clusters, n_features)
         The cluster centers.
@@ -933,20 +997,39 @@ class _BaseKMeans(
             if has_vcomp and has_mkl:
                 self._warn_mkl_vcomp(n_active_threads)
 
-    def _validate_center_shape(self, X, centers):
-        """Check if centers is compatible with X and n_clusters."""
+    def _validate_center_shape(
+        self, X: np.ndarray, centers: np.ndarray
+    ) -> None:
+        """Validate that the initial centers are compatible with X and n_clusters.
+
+        Checks that the number of centers matches n_clusters and that the
+        dimensionality of centers matches the number of features in X.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            The input data.
+
+        centers : ndarray of shape (n_clusters, n_features)
+            The initial cluster centers to validate.
+
+        Raises
+        ------
+        ValueError
+            If the center dimensions don't match the expected values.
+        """
         if centers.shape[0] != self.n_clusters:
             raise ValueError(
                 f"The shape of the initial centers {centers.shape} does not "
                 f"match the number of clusters {self.n_clusters}."
             )
-        if centers.shape[1] != X.shape[1]:
+        if centers.shape[1] != X.shape[0]:
             raise ValueError(
                 f"The shape of the initial centers {centers.shape} does not "
                 f"match the number of features of the data {X.shape[1]}."
             )
 
-    def _check_test_data(self, X):
+    def _check_test_data(self, X: np.ndarray) -> np.ndarray:
         X = validate_data(
             self,
             X,
