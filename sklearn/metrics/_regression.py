@@ -1,10 +1,13 @@
-"""Metrics to assess performance on regression task.
+"""Metrics to assess performance on regression tasks.
 
 Functions named as ``*_score`` return a scalar value to maximize: the higher
 the better.
 
 Function named as ``*_error`` or ``*_loss`` return a scalar value to minimize:
 the lower the better.
+
+All regression metrics support both single-output and multi-output targets.
+Sample weights are supported across all metrics via the sample_weight parameter.
 """
 
 # Authors: The scikit-learn developers
@@ -57,9 +60,17 @@ __ALL__ = [
 
 
 def _check_reg_targets(
-    y_true, y_pred, sample_weight, multioutput, dtype="numeric", xp=None
-):
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sample_weight: np.ndarray,
+    multioutput,
+    dtype: str = "numeric",
+    xp=None,
+) -> tuple:
     """Check that y_true, y_pred and sample_weight belong to the same regression task.
+
+    Validates input arrays for regression metrics, ensuring consistent
+    shapes and types. Also handles multioutput validation.
 
     To reduce redundancy when calling `_find_matching_floating_dtype`,
     please use `_check_reg_targets_with_floating_dtype` instead.
@@ -75,23 +86,20 @@ def _check_reg_targets(
     sample_weight : array-like of shape (n_samples,) or None
         Sample weights.
 
-    multioutput : array-like or string in ['raw_values', uniform_average',
+    multioutput : array-like or string in ['raw_values', 'uniform_average',
         'variance_weighted'] or None
         None is accepted due to backward compatibility of r2_score().
 
     dtype : str or list, default="numeric"
-        the dtype argument passed to check_array.
+        The dtype argument passed to check_array.
 
     xp : module, default=None
-        Precomputed array namespace module. When passed, typically from a caller
-        that has already performed inspection of its own inputs, skips array
-        namespace inspection.
+        Precomputed array namespace module.
 
     Returns
     -------
-    type_true : one of {'continuous', continuous-multioutput'}
-        The type of the true target data, as output by
-        'utils.multiclass.type_of_target'.
+    type_true : one of {'continuous', 'continuous-multioutput'}
+        The type of the true target data.
 
     y_true : array-like of shape (n_samples, n_outputs)
         Ground truth (correct) target values.

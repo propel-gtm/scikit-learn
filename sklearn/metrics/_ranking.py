@@ -5,6 +5,10 @@ the better.
 
 Function named as ``*_error`` or ``*_loss`` return a scalar value to minimize:
 the lower the better.
+
+These metrics evaluate the quality of ranking or scoring predictions rather
+than discrete class predictions. They are particularly useful for evaluating
+probabilistic classifiers.
 """
 
 # Authors: The scikit-learn developers
@@ -49,11 +53,11 @@ from sklearn.utils.validation import (
     {"x": ["array-like"], "y": ["array-like"]},
     prefer_skip_nested_validation=True,
 )
-def auc(x, y):
+def auc(x: np.ndarray, y: np.ndarray) -> float:
     """Compute Area Under the Curve (AUC) using the trapezoidal rule.
 
-    This is a general function, given points on a curve.  For computing the
-    area under the ROC-curve, see :func:`roc_auc_score`.  For an alternative
+    This is a general function, given points on a curve. For computing the
+    area under the ROC-curve, see :func:`roc_auc_score`. For an alternative
     way to summarize a precision-recall curve, see
     :func:`average_precision_score`.
 
@@ -62,13 +66,19 @@ def auc(x, y):
     x : array-like of shape (n,)
         X coordinates. These must be either monotonic increasing or monotonic
         decreasing.
+
     y : array-like of shape (n,)
         Y coordinates.
 
     Returns
     -------
     auc : float
-        Area Under the Curve.
+        Area Under the Curve. Always non-negative.
+
+    Raises
+    ------
+    ValueError
+        If x is not monotonic or has fewer than 2 points.
 
     See Also
     --------
@@ -93,17 +103,17 @@ def auc(x, y):
 
     if x.shape[0] < 2:
         raise ValueError(
-            "At least 2 points are needed to compute area under curve, but x.shape = %s"
-            % x.shape
+            f"At least 2 points are needed to compute area under curve, "
+            f"but x.shape = {x.shape}"
         )
 
     direction = 1
     dx = np.diff(x)
     if np.any(dx < 0):
-        if np.all(dx <= 0):
+        if np.all(dx < 0):
             direction = -1
         else:
-            raise ValueError("x is neither increasing nor decreasing : {}.".format(x))
+            raise ValueError(f"x is neither increasing nor decreasing: {x}.")
 
     area = direction * trapezoid(y, x)
     if isinstance(area, np.memmap):

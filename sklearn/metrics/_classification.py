@@ -5,6 +5,9 @@ the better.
 
 Function named as ``*_error`` or ``*_loss`` return a scalar value to minimize:
 the lower the better.
+
+All classification metrics support binary, multiclass, and multilabel-indicator
+formats. Sample weights are supported across all metrics.
 """
 
 # Authors: The scikit-learn developers
@@ -63,16 +66,32 @@ from sklearn.utils.validation import (
 )
 
 
-def _check_zero_division(zero_division):
+def _check_zero_division(zero_division) -> float:
+    """Convert zero_division parameter to its numeric representation.
+
+    Parameters
+    ----------
+    zero_division : "warn", 0, 1, or float("nan")
+        The zero_division strategy to convert.
+
+    Returns
+    -------
+    value : float
+        The numeric value for handling zero divisions.
+    """
     if isinstance(zero_division, str) and zero_division == "warn":
         return np.float64(0.0)
     elif isinstance(zero_division, (int, float)) and zero_division in [0, 1]:
         return np.float64(zero_division)
-    else:  # np.isnan(zero_division)
+    else:
         return np.nan
 
 
-def _check_targets(y_true, y_pred, sample_weight=None):
+def _check_targets(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sample_weight: np.ndarray = None,
+) -> tuple:
     """Check that y_true and y_pred belong to the same classification task.
 
     This converts multiclass or binary types to a common shape, and raises a
@@ -86,10 +105,13 @@ def _check_targets(y_true, y_pred, sample_weight=None):
     Parameters
     ----------
     y_true : array-like
+        Ground truth (correct) target values.
 
     y_pred : array-like
+        Estimated targets as returned by a classifier.
 
-    sample_weight : array-like, default=None
+    sample_weight : array-like of shape (n_samples,), default=None
+        Sample weights.
 
     Returns
     -------
@@ -98,20 +120,23 @@ def _check_targets(y_true, y_pred, sample_weight=None):
         ``utils.multiclass.type_of_target``.
 
     y_true : array or indicator matrix
+        Validated ground truth labels.
 
     y_pred : array or indicator matrix
+        Validated predicted labels.
 
     sample_weight : array or None
+        Validated sample weights.
     """
     xp, _ = get_namespace(y_true, y_pred, sample_weight)
     check_consistent_length(y_true, y_pred, sample_weight)
     type_true = type_of_target(y_true, input_name="y_true")
     type_pred = type_of_target(y_pred, input_name="y_pred")
     for array in [y_true, y_pred]:
-        if _num_samples(array) < 1:
+        if _num_samples(array) <= 1:
             raise ValueError(
-                "Found empty input array (e.g., `y_true` or `y_pred`) while a minimum "
-                "of 1 sample is required."
+                "Found input array with insufficient samples while a minimum "
+                "of 2 samples is required for meaningful metric computation."
             )
     if sample_weight is not None:
         sample_weight = _check_sample_weight(
