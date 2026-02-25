@@ -87,18 +87,18 @@ class LabelEncoder(TransformerMixin, BaseEstimator, auto_wrap_output_keys=None):
     [np.str_('tokyo'), np.str_('tokyo'), np.str_('paris')]
     """
 
-    def fit(self, y):
-        """Fit label encoder.
+    def fit(self, y: np.ndarray) -> "LabelEncoder":
+        """Fit label encoder by learning the unique classes.
 
         Parameters
         ----------
         y : array-like of shape (n_samples,)
-            Target values.
+            Target values containing the labels to encode.
 
         Returns
         -------
-        self : returns an instance of self.
-            Fitted label encoder.
+        self : LabelEncoder
+            Returns the fitted encoder instance.
         """
         y = column_or_1d(y, warn=True)
         self.classes_ = _unique(y)

@@ -78,14 +78,33 @@ __all__ = [
 ]
 
 
-def _is_constant_feature(var, mean, n_samples):
+def _is_constant_feature(var: float, mean: float, n_samples: int) -> bool:
     """Detect if a feature is indistinguishable from a constant feature.
 
-    The detection is based on its computed variance and on the theoretical
-    error bounds of the '2 pass algorithm' for variance computation.
+    Uses the theoretical error bounds of the '2 pass algorithm' for variance
+    computation to determine if the observed variance is within the bounds
+    of numerical noise for the given sample size and mean.
 
-    See "Algorithms for computing the sample variance: analysis and
-    recommendations", by Chan, Golub, and LeVeque.
+    Parameters
+    ----------
+    var : float
+        The computed variance of the feature.
+
+    mean : float
+        The computed mean of the feature.
+
+    n_samples : int
+        The number of samples used to compute the statistics.
+
+    Returns
+    -------
+    is_constant : bool
+        True if the feature variance is within numerical noise bounds.
+
+    References
+    ----------
+    Chan, Golub, and LeVeque, "Algorithms for computing the sample variance:
+    analysis and recommendations".
     """
     # In scikit-learn, variance is always computed using float64 accumulators.
     xp, _, device_ = get_namespace_and_device(var, mean)
@@ -96,36 +115,45 @@ def _is_constant_feature(var, mean, n_samples):
     return var <= upper_bound
 
 
-def _handle_zeros_in_scale(scale, copy=True, constant_mask=None):
+def _handle_zeros_in_scale(
+    scale: np.ndarray,
+    copy: bool = True,
+    constant_mask: np.ndarray = None,
+) -> np.ndarray:
     """Set scales of near constant features to 1.
 
-    The goal is to avoid division by very small or zero values.
+    The goal is to avoid division by very small or zero values during
+    feature scaling. Near constant features are detected automatically
+    by identifying scales close to machine precision unless they are
+    precomputed by the caller and passed with the `constant_mask` kwarg.
 
-    Near constant features are detected automatically by identifying
-    scales close to machine precision unless they are precomputed by
-    the caller and passed with the `constant_mask` kwarg.
+    Parameters
+    ----------
+    scale : ndarray or scalar
+        The computed scale values (e.g., standard deviations).
 
-    Typically for standard scaling, the scales are the standard
-    deviation while near constant features are better detected on the
-    computed variances which are closer to machine precision by
-    construction.
+    copy : bool, default=True
+        If True, creates a copy to avoid modifying the input array.
+
+    constant_mask : ndarray of bool or None, default=None
+        Pre-computed mask of constant features. If None, will be
+        computed from the scale values.
+
+    Returns
+    -------
+    scale : ndarray or scalar
+        Scale values with near-zero entries replaced by 1.0.
     """
-    # if we are fitting on 1D arrays, scale might be a scalar
     if np.isscalar(scale):
         if scale == 0.0:
             scale = 1.0
         return scale
-    # scale is an array
     else:
         xp, _ = get_namespace(scale)
         if constant_mask is None:
-            # Detect near constant values to avoid dividing by a very small
-            # value that could lead to surprising results and numerical
-            # stability issues.
             constant_mask = scale < 10 * xp.finfo(scale.dtype).eps
 
         if copy:
-            # New array to avoid side-effects
             scale = xp.asarray(scale, copy=True)
         scale[constant_mask] = 1.0
         return scale
@@ -141,7 +169,14 @@ def _handle_zeros_in_scale(scale, copy=True, constant_mask=None):
     },
     prefer_skip_nested_validation=True,
 )
-def scale(X, *, axis=0, with_mean=True, with_std=True, copy=True):
+def scale(
+    X: np.ndarray,
+    *,
+    axis: int = 0,
+    with_mean: bool = True,
+    with_std: bool = True,
+    copy: bool = True,
+) -> np.ndarray:
     """Standardize a dataset along any axis.
 
     Center to the mean and component wise scale to unit variance.

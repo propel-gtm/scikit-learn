@@ -30,23 +30,37 @@ __all__ = ["OneHotEncoder", "OrdinalEncoder"]
 
 
 class _BaseEncoder(TransformerMixin, BaseEstimator):
+    """Base class for encoders with common category handling logic.
+
+    Provides shared functionality for categorizing and transforming input
+    features, including handling of pandas DataFrames, missing values,
+    and infrequent categories.
     """
-    Base class for encoders that includes the code to categorize and
-    transform the input features.
 
-    """
+    def _check_X(self, X, ensure_all_finite: bool = True) -> tuple:
+        """Validate input X and return per-feature arrays.
 
-    def _check_X(self, X, ensure_all_finite=True):
-        """
-        Perform custom check_array:
-        - convert list of strings to object dtype
-        - check for missing values for object dtype data (check_array does
-          not do that)
-        - return list of features (arrays): this list of features is
-          constructed feature by feature to preserve the data types
-          of pandas DataFrame columns, as otherwise information is lost
-          and cannot be used, e.g. for the `categories_` attribute.
+        Performs type-appropriate validation and returns features as a list
+        of arrays to preserve per-column dtypes from DataFrames.
 
+        Parameters
+        ----------
+        X : array-like or DataFrame of shape (n_samples, n_features)
+            Input data to validate.
+
+        ensure_all_finite : bool, default=True
+            Whether to raise an error on infinite values.
+
+        Returns
+        -------
+        X_columns : list of ndarray
+            Per-feature arrays.
+
+        n_samples : int
+            Number of samples.
+
+        n_features : int
+            Number of features.
         """
         if not (hasattr(X, "iloc") and getattr(X, "ndim", 0) == 2):
             # if not a dataframe, do normal check_array validation
