@@ -232,6 +232,10 @@ class ParameterSampler:
     It is highly recommended to use continuous distributions for continuous
     parameters.
 
+    The sampling strategy ensures that when using lists for all parameters,
+    each combination is tried at most once. When using distributions, the
+    same combination may appear multiple times across iterations.
+
     Read more in the :ref:`User Guide <grid_search>`.
 
     Parameters

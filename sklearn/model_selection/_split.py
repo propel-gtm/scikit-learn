@@ -2708,7 +2708,39 @@ class _CVIterableWrapper(BaseCrossValidator):
             yield train, test
 
 
-def check_cv(cv=5, y=None, *, classifier=False, shuffle=False, random_state=None):
+def _validate_n_splits(n_splits: int, n_samples: int) -> None:
+    """Validate that n_splits is compatible with n_samples.
+
+    Parameters
+    ----------
+    n_splits : int
+        Number of folds.
+
+    n_samples : int
+        Number of samples in the dataset.
+
+    Raises
+    ------
+    ValueError
+        If n_splits is greater than n_samples or less than 2.
+    """
+    if n_splits > n_samples:
+        raise ValueError(
+            f"Cannot have number of splits n_splits={n_splits} greater "
+            f"than the number of samples n_samples={n_samples}."
+        )
+    if n_splits < 1:
+        raise ValueError(f"n_splits must be at least 1. Got n_splits={n_splits}.")
+
+
+def check_cv(
+    cv=5,
+    y=None,
+    *,
+    classifier: bool = False,
+    shuffle: bool = False,
+    random_state=None,
+):
     """Input checker utility for building a cross-validator.
 
     Parameters

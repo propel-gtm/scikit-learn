@@ -69,15 +69,23 @@ __all__ = [
 def _check_groups_routing_disabled(groups: np.ndarray = None) -> None:
     """Validate that groups parameter is not used when routing is enabled.
 
+    When metadata routing is enabled, the groups parameter must be passed
+    via the params argument instead of as a direct keyword argument. This
+    check ensures backward compatibility during the transition period.
+
     Parameters
     ----------
     groups : array-like of shape (n_samples,) or None
-        Group labels for samples.
+        Group labels for samples. Used by group-based CV splitters.
 
     Raises
     ------
     ValueError
         If groups is provided and metadata routing is enabled.
+
+    See Also
+    --------
+    sklearn.set_config : Configure metadata routing behavior.
     """
     if groups is not None and _routing_enabled():
         raise ValueError(
