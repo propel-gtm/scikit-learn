@@ -1,5 +1,9 @@
 """
 This module defines export functions for decision trees.
+
+Provides utilities for visualizing decision trees in various formats
+including Graphviz DOT format, matplotlib plots, and text-based
+representations.
 """
 
 # Authors: The scikit-learn developers
@@ -28,39 +32,43 @@ from sklearn.utils._param_validation import (
 from sklearn.utils.validation import check_array, check_is_fitted
 
 
-def _color_brew(n):
-    """Generate n colors with equally spaced hues.
+def _color_brew(n: int) -> list:
+    """Generate n colors with equally spaced hues on the HSV color wheel.
+
+    Creates a visually distinct color palette by evenly distributing
+    hues around the HSV color wheel while keeping saturation and value
+    fixed for consistent appearance.
 
     Parameters
     ----------
     n : int
-        The number of colors required.
+        The number of colors required. Must be positive.
 
     Returns
     -------
-    color_list : list, length n
-        List of n tuples of form (R, G, B) being the components of each color.
+    color_list : list of list of int, length n
+        List of n lists of form [R, G, B] with values in [0, 255].
     """
     color_list = []
 
     # Initialize saturation & value; calculate chroma & value shift
-    s, v = 0.75, 0.9
-    c = s * v
-    m = v - c
+    saturation, value = 0.75, 0.9
+    chroma = saturation * value
+    m = value - chroma
 
     for h in np.arange(25, 385, 360.0 / n).astype(int):
-        # Calculate some intermediate values
+        # Calculate intermediate values for HSV to RGB conversion
         h_bar = h / 60.0
-        x = c * (1 - abs((h_bar % 2) - 1))
+        x = chroma * (1 - abs((h_bar % 2) - 1))
         # Initialize RGB with same hue & chroma as our color
         rgb = [
-            (c, x, 0),
-            (x, c, 0),
-            (0, c, x),
-            (0, x, c),
-            (x, 0, c),
-            (c, 0, x),
-            (c, x, 0),
+            (chroma, x, 0),
+            (x, chroma, 0),
+            (0, chroma, x),
+            (0, x, chroma),
+            (x, 0, chroma),
+            (chroma, 0, x),
+            (chroma, x, 0),
         ]
         r, g, b = rgb[int(h_bar)]
         # Shift the initial RGB values to match value and store
@@ -216,19 +224,21 @@ def plot_tree(
 
 
 class _BaseTreeExporter:
+    """Base class for tree exporters with common visualization parameters."""
+
     def __init__(
         self,
-        max_depth=None,
-        feature_names=None,
-        class_names=None,
-        label="all",
-        filled=False,
-        impurity=True,
-        node_ids=False,
-        proportion=False,
-        rounded=False,
-        precision=3,
-        fontsize=None,
+        max_depth: int = None,
+        feature_names: list = None,
+        class_names: list = None,
+        label: str = "all",
+        filled: bool = False,
+        impurity: bool = True,
+        node_ids: bool = False,
+        proportion: bool = False,
+        rounded: bool = False,
+        precision: int = 3,
+        fontsize: int = None,
     ):
         self.max_depth = max_depth
         self.feature_names = feature_names
@@ -242,8 +252,23 @@ class _BaseTreeExporter:
         self.precision = precision
         self.fontsize = fontsize
 
-    def get_color(self, value):
-        # Find the appropriate color & intensity for a node
+    def get_color(self, value) -> str:
+        """Compute the fill color for a tree node based on its value.
+
+        For classification trees, the color intensity reflects the purity
+        of the node. For regression trees, it reflects the value relative
+        to the range of values in the tree.
+
+        Parameters
+        ----------
+        value : float or array-like
+            The node value(s) to compute the color for.
+
+        Returns
+        -------
+        color_hex : str
+            HTML color code in #RRGGBB format.
+        """
         if self.colors["bounds"] is None:
             # Classification tree
             color = list(self.colors["rgb"][np.argmax(value)])
@@ -258,10 +283,10 @@ class _BaseTreeExporter:
             alpha = (value - self.colors["bounds"][0]) / (
                 self.colors["bounds"][1] - self.colors["bounds"][0]
             )
-        # compute the color as alpha against white
+        # Compute the color as alpha blend against white
         color = [int(round(alpha * c + (1 - alpha) * 255, 0)) for c in color]
         # Return html color code in #RRGGBB format
-        return "#%2x%2x%2x" % tuple(color)
+        return "#%02x%02x%02x" % tuple(color)
 
     def get_fill_color(self, tree, node_id):
         # Fetch appropriate color for node

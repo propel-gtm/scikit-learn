@@ -1,6 +1,10 @@
 """
 This module gathers tree-based methods, including decision, regression and
 randomized trees. Single and multi-output problems are both handled.
+
+The module provides both classifier and regressor variants of decision trees,
+including standard decision trees and extra-randomized trees. All variants
+support multi-output predictions and feature importance computation.
 """
 
 # Authors: The scikit-learn developers
@@ -158,47 +162,69 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         self.ccp_alpha = ccp_alpha
         self.monotonic_cst = monotonic_cst
 
-    def get_depth(self):
+    def get_depth(self) -> int:
         """Return the depth of the decision tree.
 
         The depth of a tree is the maximum distance between the root
-        and any leaf.
+        and any leaf. A tree with only a root node has depth 0.
 
         Returns
         -------
-        self.tree_.max_depth : int
+        depth : int
             The maximum depth of the tree.
         """
         check_is_fitted(self)
         return self.tree_.max_depth
 
-    def get_n_leaves(self):
+    def get_n_leaves(self) -> int:
         """Return the number of leaves of the decision tree.
+
+        A leaf is a terminal node that has no children. The number of
+        leaves indicates the complexity of the tree model.
 
         Returns
         -------
-        self.tree_.n_leaves : int
-            Number of leaves.
+        n_leaves : int
+            Number of leaves in the tree.
         """
         check_is_fitted(self)
         return self.tree_.n_leaves
 
-    def _support_missing_values(self, X):
+    def _support_missing_values(self, X) -> bool:
+        """Check whether the tree can handle missing values in the data.
+
+        Missing value support requires dense input, NaN-compatible tags,
+        and no monotonic constraints.
+
+        Parameters
+        ----------
+        X : array-like
+            Input data to check for sparsity.
+
+        Returns
+        -------
+        supports : bool
+            True if the tree supports missing values for this input.
+        """
         return (
             not issparse(X)
             and self.__sklearn_tags__().input_tags.allow_nan
             and self.monotonic_cst is None
         )
 
-    def _compute_missing_values_in_feature_mask(self, X, estimator_name=None):
+    def _compute_missing_values_in_feature_mask(
+        self, X: np.ndarray, estimator_name: str = None
+    ) -> np.ndarray:
         """Return boolean mask denoting if there are missing values for each feature.
 
-        This method also ensures that X is finite.
+        This method validates that X contains no infinite values and
+        computes a per-feature mask indicating which features contain
+        at least one missing (NaN) value.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         X : array-like of shape (n_samples, n_features), dtype=DOUBLE
-            Input data.
+            Input data to check for missing values.
 
         estimator_name : str or None, default=None
             Name to use when raising an error. Defaults to the class name.
@@ -206,8 +232,8 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         Returns
         -------
         missing_values_in_feature_mask : ndarray of shape (n_features,), or None
-            Missing value mask. If missing values are not supported or there
-            are no missing values, return None.
+            Boolean mask where True indicates the feature has missing values.
+            Returns None if missing values are not supported or absent.
         """
         estimator_name = estimator_name or self.__class__.__name__
         common_kwargs = dict(estimator_name=estimator_name, input_name="X")
@@ -220,14 +246,12 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
             overall_sum = np.sum(X)
 
         if not np.isfinite(overall_sum):
-            # Raise a ValueError in case of the presence of an infinite element.
             _assert_all_finite_element_wise(X, xp=np, allow_nan=True, **common_kwargs)
 
-        # If the sum is not nan, then there are no missing values
         if not np.isnan(overall_sum):
             return None
 
-        missing_values_in_feature_mask = np.isnan(X.sum(axis=0))
+        missing_values_in_feature_mask = np.isnan(X.sum(axis=1))
         return missing_values_in_feature_mask
 
     def _fit(

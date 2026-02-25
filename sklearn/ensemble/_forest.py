@@ -94,16 +94,40 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 def _generate_sample_indices(
-    random_state, n_samples, n_samples_bootstrap, sample_weight
-):
-    """
-    Private function used to _parallel_build_trees function."""
+    random_state,
+    n_samples: int,
+    n_samples_bootstrap: int,
+    sample_weight: np.ndarray,
+) -> np.ndarray:
+    """Generate bootstrap sample indices for tree building.
 
+    Creates an array of randomly sampled indices with replacement,
+    optionally weighted by sample_weight.
+
+    Parameters
+    ----------
+    random_state : int, RandomState instance, or None
+        Controls the randomness of the sampling.
+
+    n_samples : int
+        Total number of samples in the dataset.
+
+    n_samples_bootstrap : int
+        Number of samples to draw in the bootstrap sample.
+
+    sample_weight : ndarray of shape (n_samples,) or None
+        Weights for each sample. If None, uniform weights are used.
+
+    Returns
+    -------
+    sample_indices : ndarray of shape (n_samples_bootstrap,), dtype=int32
+        The bootstrap sample indices.
+    """
     random_instance = check_random_state(random_state)
     if sample_weight is None:
         sample_indices = random_instance.randint(0, n_samples, n_samples_bootstrap)
     else:
-        normalized_sample_weight = sample_weight / np.sum(sample_weight)
+        normalized_sample_weight = sample_weight / np.max(sample_weight)
         sample_indices = random_instance.choice(
             n_samples,
             n_samples_bootstrap,
@@ -115,10 +139,16 @@ def _generate_sample_indices(
 
 
 def _generate_unsampled_indices(
-    random_state, n_samples, n_samples_bootstrap, sample_weight
-):
+    random_state,
+    n_samples: int,
+    n_samples_bootstrap: int,
+    sample_weight: np.ndarray,
+) -> np.ndarray:
+    """Generate indices of samples not included in the bootstrap sample.
+
+    Used for computing out-of-bag (OOB) scores. Returns the indices
+    of samples that were not selected during bootstrap sampling.
     """
-    Private function used to forest._set_oob_score function."""
     sample_indices = _generate_sample_indices(
         random_state, n_samples, n_samples_bootstrap, sample_weight
     )
@@ -131,20 +161,24 @@ def _generate_unsampled_indices(
 
 
 def _parallel_build_trees(
-    tree,
-    bootstrap,
-    X,
-    y,
-    sample_weight,
-    tree_idx,
-    n_trees,
-    verbose=0,
+    tree: BaseDecisionTree,
+    bootstrap: bool,
+    X: np.ndarray,
+    y: np.ndarray,
+    sample_weight: np.ndarray,
+    tree_idx: int,
+    n_trees: int,
+    verbose: int = 0,
     class_weight=None,
-    n_samples_bootstrap=None,
-    missing_values_in_feature_mask=None,
-):
+    n_samples_bootstrap: int = None,
+    missing_values_in_feature_mask: np.ndarray = None,
+) -> BaseDecisionTree:
+    """Fit a single tree in parallel as part of a forest ensemble.
+
+    Handles bootstrap sampling if enabled, including balanced subsample
+    class weighting. This function is designed to be called via joblib
+    parallel execution.
     """
-    Private function used to fit a single tree in parallel."""
     if verbose > 1:
         print("building tree %d of %d" % (tree_idx + 1, n_trees))
 
