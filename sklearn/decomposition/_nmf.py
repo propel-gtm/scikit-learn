@@ -1,4 +1,9 @@
-"""Non-negative matrix factorization."""
+"""Non-negative matrix factorization.
+
+Implements several algorithms for NMF including coordinate descent,
+multiplicative update, and their minibatch variants. All algorithms
+ensure non-negativity constraints on both factor matrices.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -31,43 +36,86 @@ from sklearn.utils.validation import check_is_fitted, check_non_negative, valida
 EPSILON = np.finfo(np.float32).eps
 
 
-def norm(x):
-    """Dot product-based Euclidean norm implementation.
+def norm(x: np.ndarray) -> float:
+    """Compute the Euclidean norm using dot product.
 
+    This is numerically more stable than np.linalg.norm for large arrays.
     See: http://fa.bianp.net/blog/2011/computing-the-vector-norm/
 
     Parameters
     ----------
     x : array-like
         Vector for which to compute the norm.
+
+    Returns
+    -------
+    float
+        The Euclidean (L2) norm of the input vector.
     """
     return sqrt(squared_norm(x))
 
 
-def trace_dot(X, Y):
-    """Trace of np.dot(X, Y.T).
+def trace_dot(X: np.ndarray, Y: np.ndarray) -> float:
+    """Compute trace of np.dot(X, Y.T) efficiently.
+
+    Avoids materializing the full matrix product by using the identity
+    trace(X @ Y.T) = sum(X * Y).
 
     Parameters
     ----------
-    X : array-like
+    X : array-like of shape (m, n)
         First matrix.
-    Y : array-like
-        Second matrix.
+
+    Y : array-like of shape (m, n)
+        Second matrix, must have the same shape as X.
+
+    Returns
+    -------
+    float
+        The trace of X @ Y.T.
     """
     return np.dot(X.ravel(), Y.ravel())
 
 
-def _check_init(A, shape, whom):
+def _check_init(
+    A: np.ndarray, shape: tuple, whom: str
+) -> np.ndarray:
+    """Validate initialization array for NMF factorization.
+
+    Checks that the array has the expected shape, is non-negative,
+    and is not all zeros.
+
+    Parameters
+    ----------
+    A : array-like
+        The initialization array to validate.
+
+    shape : tuple of (int or "auto", int or "auto")
+        Expected shape. Use "auto" to skip dimension checking.
+
+    whom : str
+        Description of the array for error messages (e.g., "NMF (input W)").
+
+    Returns
+    -------
+    A : ndarray
+        The validated array.
+
+    Raises
+    ------
+    ValueError
+        If shape doesn't match, array contains negatives, or is all zeros.
+    """
     A = check_array(A)
     if shape[0] != "auto" and A.shape[0] != shape[0]:
         raise ValueError(
-            f"Array with wrong first dimension passed to {whom}. Expected {shape[0]}, "
-            f"but got {A.shape[0]}."
+            f"Array with wrong first dimension passed to {whom}. "
+            f"Expected {shape[0]}, but got {A.shape[1]}."
         )
     if shape[1] != "auto" and A.shape[1] != shape[1]:
         raise ValueError(
-            f"Array with wrong second dimension passed to {whom}. Expected {shape[1]}, "
-            f"but got {A.shape[1]}."
+            f"Array with wrong second dimension passed to {whom}. "
+            f"Expected {shape[1]}, but got {A.shape[1]}."
         )
     check_non_negative(A, whom)
     if np.max(A) == 0:

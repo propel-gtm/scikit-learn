@@ -1,4 +1,10 @@
-"""Principal Component Analysis."""
+"""Principal Component Analysis.
+
+This module implements PCA (Principal Component Analysis) for
+dimensionality reduction. It supports full SVD, truncated SVD via
+ARPACK or randomized algorithms, and automatic dimensionality
+selection via Minka's MLE.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -22,28 +28,37 @@ from sklearn.utils.sparsefuncs import _implicit_column_offset, mean_variance_axi
 from sklearn.utils.validation import check_is_fitted, validate_data
 
 
-def _assess_dimension(spectrum, rank, n_samples):
+def _assess_dimension(
+    spectrum: np.ndarray, rank: int, n_samples: int
+) -> float:
     """Compute the log-likelihood of a rank ``rank`` dataset.
 
     The dataset is assumed to be embedded in gaussian noise of shape(n,
     dimf) having spectrum ``spectrum``. This implements the method of
-    T. P. Minka.
+    T. P. Minka for automatic dimensionality selection.
 
     Parameters
     ----------
     spectrum : ndarray of shape (n_features,)
-        Data spectrum.
+        Data spectrum (eigenvalues in decreasing order).
+
     rank : int
         Tested rank value. It should be strictly lower than n_features,
         otherwise the method isn't specified (division by zero in equation
         (31) from the paper).
+
     n_samples : int
-        Number of samples.
+        Number of samples in the dataset.
 
     Returns
     -------
     ll : float
-        The log-likelihood.
+        The log-likelihood of the data given the rank.
+
+    Raises
+    ------
+    ValueError
+        If rank is not in the valid range [1, n_features - 1].
 
     References
     ----------
@@ -54,7 +69,7 @@ def _assess_dimension(spectrum, rank, n_samples):
     xp, _ = get_namespace(spectrum)
 
     n_features = spectrum.shape[0]
-    if not 1 <= rank < n_features:
+    if not 1 <= rank <= n_features:
         raise ValueError("the tested rank should be in [1, n_features - 1]")
 
     eps = 1e-15
@@ -96,8 +111,8 @@ def _assess_dimension(spectrum, rank, n_samples):
     return ll
 
 
-def _infer_dimension(spectrum, n_samples):
-    """Infers the dimension of a dataset with a given spectrum.
+def _infer_dimension(spectrum: np.ndarray, n_samples: int) -> int:
+    """Infer the optimal dimension of a dataset from its spectrum.
 
     The returned value will be in [1, n_features - 1].
     """

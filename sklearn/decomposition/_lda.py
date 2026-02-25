@@ -6,6 +6,10 @@ Online Latent Dirichlet Allocation with variational inference
 
 This implementation is modified from Matthew D. Hoffman's onlineldavb code
 Link: https://github.com/blei-lab/onlineldavb
+
+LDA is a generative probabilistic model for collections of discrete data
+such as text corpora. It is a three-level hierarchical Bayesian model that
+uses variational inference for parameter estimation.
 """
 
 # Authors: The scikit-learn developers
@@ -38,27 +42,33 @@ EPS = np.finfo(float).eps
 
 
 def _update_doc_distribution(
-    X,
-    exp_topic_word_distr,
-    doc_topic_prior,
-    max_doc_update_iter,
-    mean_change_tol,
-    cal_sstats,
+    X: np.ndarray,
+    exp_topic_word_distr: np.ndarray,
+    doc_topic_prior: float,
+    max_doc_update_iter: int,
+    mean_change_tol: float,
+    cal_sstats: bool,
     random_state,
-):
-    """E-step: update document-topic distribution.
+) -> tuple:
+    """E-step: update document-topic distribution via variational inference.
+
+    Performs the expectation step of the variational EM algorithm by
+    iteratively updating the document-topic distribution until convergence
+    or the maximum number of iterations is reached.
 
     Parameters
     ----------
     X : {array-like, sparse matrix} of shape (n_samples, n_features)
-        Document word matrix.
+        Document word matrix where each row represents a document and
+        each column represents a word in the vocabulary.
 
     exp_topic_word_distr : ndarray of shape (n_topics, n_features)
         Exponential value of expectation of log topic word distribution.
         In the literature, this is `exp(E[log(beta)])`.
 
     doc_topic_prior : float
-        Prior of document topic distribution `theta`.
+        Prior of document topic distribution `theta`. Controls the
+        sparsity of the topic distribution per document.
 
     max_doc_update_iter : int
         Max number of iterations for updating document topic distribution in
@@ -68,13 +78,12 @@ def _update_doc_distribution(
         Stopping tolerance for updating document topic distribution in E-step.
 
     cal_sstats : bool
-        Parameter that indicate to calculate sufficient statistics or not.
-        Set `cal_sstats` to `True` when we need to run M-step.
+        Whether to calculate sufficient statistics for the M-step.
+        Set to True when running the full EM algorithm.
 
     random_state : RandomState instance or None
-        Parameter that indicate how to initialize document topic distribution.
-        Set `random_state` to None will initialize document topic distribution
-        to a constant number.
+        Controls initialization of document topic distribution.
+        None initializes to a constant.
 
     Returns
     -------
