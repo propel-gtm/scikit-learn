@@ -1,4 +1,10 @@
-"""Utilities to build a composite estimator as a chain of transforms and estimators."""
+"""Utilities to build a composite estimator as a chain of transforms and estimators.
+
+This module provides Pipeline and FeatureUnion classes for composing
+multiple estimators into a single predictive model. Pipelines chain
+transformers with a final estimator, while FeatureUnion concatenates
+results from multiple transformers.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -36,13 +42,24 @@ from sklearn.utils.validation import check_is_fitted, check_memory
 __all__ = ["FeatureUnion", "Pipeline", "make_pipeline", "make_union"]
 
 
-def _final_estimator_has(attr):
+def _final_estimator_has(attr: str):
     """Check that final_estimator has `attr`.
 
-    Used together with `available_if` in `Pipeline`."""
+    Used together with `available_if` in `Pipeline` to conditionally
+    expose methods based on the capabilities of the final estimator.
+
+    Parameters
+    ----------
+    attr : str
+        The attribute name to check on the final estimator.
+
+    Returns
+    -------
+    check : callable
+        A function that returns True if the final estimator has the attribute.
+    """
 
     def check(self):
-        # raise original `AttributeError` if `attr` does not exist
         getattr(self._final_estimator, attr)
         return True
 
@@ -50,23 +67,35 @@ def _final_estimator_has(attr):
 
 
 def _cached_transform(
-    sub_pipeline, *, cache, param_name, param_value, transform_params
+    sub_pipeline: "Pipeline",
+    *,
+    cache: dict,
+    param_name: str,
+    param_value,
+    transform_params: dict,
 ):
     """Transform a parameter value using a sub-pipeline and cache the result.
+
+    Applies the sub-pipeline's transform method to the parameter value,
+    caching results to avoid redundant computation. Supports both single
+    values and tuples (for multi-dataset validation patterns).
 
     Parameters
     ----------
     sub_pipeline : Pipeline
         The sub-pipeline to be used for transformation.
+
     cache : dict
         The cache dictionary to store the transformed values.
+
     param_name : str
         The name of the parameter to be transformed.
+
     param_value : object
         The value of the parameter to be transformed.
+
     transform_params : dict
-        The metadata to be used for transformation. This passed to the
-        `transform` method of the sub-pipeline.
+        The metadata to be passed to the `transform` method.
 
     Returns
     -------

@@ -2,6 +2,10 @@
 The :mod:`sklearn.compose._column_transformer` module implements utilities
 to work with heterogeneous data and to apply different transformers to
 different columns.
+
+ColumnTransformer allows applying different preprocessing and feature
+extraction pipelines to different subsets of features, which is particularly
+useful for datasets with mixed types (numeric, categorical, text).
 """
 
 # Authors: The scikit-learn developers
@@ -60,7 +64,8 @@ __all__ = ["ColumnTransformer", "make_column_selector", "make_column_transformer
 _ERR_MSG_1DCOLUMN = (
     "1D data passed to a transformer that expects 2D data. "
     "Try to specify the column selection as a list of one "
-    "item instead of a scalar."
+    "item instead of a scalar, e.g., use ['column_name'] "
+    "instead of 'column_name'."
 )
 
 

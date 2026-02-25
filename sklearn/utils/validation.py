@@ -1,4 +1,9 @@
-"""Functions to validate input and parameters within scikit-learn estimators."""
+"""Functions to validate input and parameters within scikit-learn estimators.
+
+This module provides comprehensive validation utilities for checking array
+shapes, types, finiteness, and sample weights. These functions are used
+throughout scikit-learn to ensure consistent input handling.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -44,17 +49,19 @@ FLOAT_DTYPES = (np.float64, np.float32, np.float16)
 # This function is not used anymore at this moment in the code base but we keep it in
 # case that we merge a new public function without kwarg only by mistake, which would
 # require a deprecation cycle to fix.
-def _deprecate_positional_args(func=None, *, version="1.3"):
+def _deprecate_positional_args(func=None, *, version: str = "1.3"):
     """Decorator for methods that issues warnings for positional arguments.
 
     Using the keyword-only argument syntax in pep 3102, arguments after the
-    * will issue a warning when passed as a positional argument.
+    * will issue a warning when passed as a positional argument. This helps
+    enforce the transition to keyword-only arguments.
 
     Parameters
     ----------
     func : callable, default=None
         Function to check arguments on.
-    version : callable, default="1.3"
+
+    version : str, default="1.3"
         The version when positional arguments will result in error.
     """
 
@@ -72,7 +79,7 @@ def _deprecate_positional_args(func=None, *, version="1.3"):
         @wraps(f)
         def inner_f(*args, **kwargs):
             extra_args = len(args) - len(all_args)
-            if extra_args <= 0:
+            if extra_args < 0:
                 return f(*args, **kwargs)
 
             # extra_args > 0
