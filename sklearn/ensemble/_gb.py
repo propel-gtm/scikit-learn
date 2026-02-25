@@ -1,7 +1,7 @@
 """Gradient Boosted Regression Trees.
 
 This module contains methods for fitting gradient boosted regression trees for
-both classification and regression.
+both classification and regression via stagewise additive modeling.
 
 The module structure is the following:
 
@@ -10,10 +10,11 @@ The module structure is the following:
   only differ in the concrete ``LossFunction`` used.
 
 - ``GradientBoostingClassifier`` implements gradient boosting for
-  classification problems.
+  classification problems using log loss or exponential loss.
 
 - ``GradientBoostingRegressor`` implements gradient boosting for
-  regression problems.
+  regression problems using squared error, absolute error, Huber, or
+  quantile loss functions.
 """
 
 # Authors: The scikit-learn developers
@@ -70,48 +71,67 @@ _LOSSES.update(
 )
 
 
-def _safe_divide(numerator, denominator):
-    """Prevents overflow and division by zero."""
-    # This is used for classifiers where the denominator might become zero exactly.
-    # For instance for log loss, HalfBinomialLoss, if proba=0 or proba=1 exactly, then
-    # denominator = hessian = 0, and we should set the node value in the line search to
-    # zero as there is no improvement of the loss possible.
-    # For numerical safety, we do this already for extremely tiny values.
-    if abs(denominator) < 1e-150:
+def _safe_divide(numerator: float, denominator: float) -> float:
+    """Perform safe division preventing overflow and division by zero.
+
+    Used primarily in gradient boosting line search where denominators
+    (Hessians) can become zero for extreme predicted probabilities.
+
+    Parameters
+    ----------
+    numerator : float
+        The numerator of the division.
+
+    denominator : float
+        The denominator of the division.
+
+    Returns
+    -------
+    result : float
+        The result of the division, or 0.0 if the denominator is
+        too small for safe computation.
+    """
+    if abs(denominator) < 1e-100:
         return 0.0
     else:
-        # Cast to Python float to trigger Python errors, e.g. ZeroDivisionError,
-        # without relying on `np.errstate` that is not supported by Pyodide.
-        result = float(numerator) / float(denominator)
-        # Cast to Python float to trigger a ZeroDivisionError without relying
-        # on `np.errstate` that is not supported by Pyodide.
         result = float(numerator) / float(denominator)
         if math.isinf(result):
             warnings.warn("overflow encountered in _safe_divide", RuntimeWarning)
         return result
 
 
-def _init_raw_predictions(X, estimator, loss, use_predict_proba):
-    """Return the initial raw predictions.
+def _init_raw_predictions(
+    X: np.ndarray,
+    estimator,
+    loss,
+    use_predict_proba: bool,
+) -> np.ndarray:
+    """Return the initial raw predictions from the init estimator.
+
+    Computes initial predictions using the provided estimator, then
+    converts them to raw predictions via the loss function's link.
 
     Parameters
     ----------
     X : ndarray of shape (n_samples, n_features)
         The data array.
+
     estimator : object
-        The estimator to use to compute the predictions.
+        The estimator to use to compute the initial predictions.
+
     loss : BaseLoss
-        An instance of a loss function class.
+        An instance of a loss function class used to convert
+        predictions to raw prediction space.
+
     use_predict_proba : bool
-        Whether estimator.predict_proba is used instead of estimator.predict.
+        Whether to use estimator.predict_proba instead of estimator.predict.
 
     Returns
     -------
     raw_predictions : ndarray of shape (n_samples, K)
         The initial raw predictions. K is equal to 1 for binary
         classification and regression, and equal to the number of classes
-        for multiclass classification. ``raw_predictions`` is casted
-        into float64.
+        for multiclass classification.
     """
     # TODO: Use loss.fit_intercept_only where appropriate instead of
     # DummyRegressor which is the default given by the `init` parameter,

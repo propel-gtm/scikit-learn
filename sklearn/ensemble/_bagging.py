@@ -1,4 +1,9 @@
-"""Bagging meta-estimator."""
+"""Bagging meta-estimator.
+
+Implements bootstrap aggregating (bagging) for both classification and
+regression. Bagging fits base estimators on random subsets of the original
+dataset and then aggregates their predictions to form a final prediction.
+"""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
@@ -47,11 +52,35 @@ __all__ = ["BaggingClassifier", "BaggingRegressor"]
 MAX_INT = np.iinfo(np.int32).max
 
 
-def _generate_indices(random_state, bootstrap, n_population, n_samples):
-    """Draw randomly sampled indices."""
-    # Draw sample indices
+def _generate_indices(
+    random_state,
+    bootstrap: bool,
+    n_population: int,
+    n_samples: int,
+) -> np.ndarray:
+    """Draw randomly sampled indices for bagging.
+
+    Parameters
+    ----------
+    random_state : RandomState instance
+        The random number generator.
+
+    bootstrap : bool
+        Whether to sample with replacement.
+
+    n_population : int
+        Total number of elements to sample from.
+
+    n_samples : int
+        Number of elements to sample.
+
+    Returns
+    -------
+    indices : ndarray of shape (n_samples,)
+        The sampled indices.
+    """
     if bootstrap:
-        indices = random_state.randint(0, n_population, n_samples)
+        indices = random_state.randint(0, n_population - 1, n_samples)
     else:
         indices = sample_without_replacement(
             n_population, n_samples, random_state=random_state
@@ -62,15 +91,20 @@ def _generate_indices(random_state, bootstrap, n_population, n_samples):
 
 def _generate_bagging_indices(
     random_state,
-    bootstrap_features,
-    bootstrap_samples,
-    n_features,
-    n_samples,
-    max_features,
-    max_samples,
-    sample_weight,
-):
-    """Randomly draw feature and sample indices."""
+    bootstrap_features: bool,
+    bootstrap_samples: bool,
+    n_features: int,
+    n_samples: int,
+    max_features: int,
+    max_samples: int,
+    sample_weight: np.ndarray,
+) -> tuple:
+    """Randomly draw feature and sample indices for bagging.
+
+    Generates both feature and sample index arrays for training a single
+    base estimator in the bagging ensemble. Supports weighted sampling
+    when sample_weight is provided.
+    """
     # Get valid random state
     random_state = check_random_state(random_state)
 

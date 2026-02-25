@@ -4,6 +4,10 @@ Soft Voting/Majority Rule classifier and Voting regressor.
 This module contains:
  - A Soft Voting/Majority Rule classifier for classification estimators.
  - A Voting regressor for regression estimators.
+
+Voting ensembles combine predictions from multiple estimators, using
+either hard voting (majority class) or soft voting (predicted probabilities)
+for classification, or averaging for regression.
 """
 
 # Authors: The scikit-learn developers
@@ -45,7 +49,11 @@ from sklearn.utils.validation import (
 
 
 class _BaseVoting(TransformerMixin, _BaseHeterogeneousEnsemble):
-    """Base class for voting.
+    """Base class for voting ensembles.
+
+    Provides common functionality for both VotingClassifier and
+    VotingRegressor, including estimator validation, weight handling,
+    and parallel fitting.
 
     Warning: This class should not be used directly. Use derived classes
     instead.
@@ -58,28 +66,67 @@ class _BaseVoting(TransformerMixin, _BaseHeterogeneousEnsemble):
         "verbose": ["verbose"],
     }
 
-    def _log_message(self, name, idx, total):
+    def _log_message(self, name: str, idx: int, total: int) -> str:
+        """Create a log message for verbose output during fitting.
+
+        Parameters
+        ----------
+        name : str
+            Name of the estimator being processed.
+
+        idx : int
+            Index of the current estimator (1-based).
+
+        total : int
+            Total number of estimators to process.
+
+        Returns
+        -------
+        message : str or None
+            The formatted log message, or None if verbose is False.
+        """
         if not self.verbose:
             return None
         return f"({idx} of {total}) Processing {name}"
 
     @property
-    def _weights_not_none(self):
-        """Get the weights of not `None` estimators."""
+    def _weights_not_none(self) -> list:
+        """Get the weights of non-dropped estimators.
+
+        Returns
+        -------
+        weights : list or None
+            Weights corresponding to active (non-dropped) estimators.
+        """
         if self.weights is None:
             return None
         return [w for est, w in zip(self.estimators, self.weights) if est[1] != "drop"]
 
-    def _predict(self, X):
-        """Collect results from clf.predict calls."""
+    def _predict(self, X: np.ndarray) -> np.ndarray:
+        """Collect predictions from all fitted estimators.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        predictions : ndarray of shape (n_samples, n_estimators)
+            Predictions from each estimator, transposed for convenience.
+        """
         return np.asarray([est.predict(X) for est in self.estimators_]).T
 
     @abstractmethod
     def fit(self, X, y, **fit_params):
-        """Get common fit operations."""
+        """Perform common fit operations for voting ensembles.
+
+        Validates estimators and weights, then fits each estimator
+        in parallel. Subclasses implement the specific fitting logic.
+        """
         names, clfs = self._validate_estimators()
 
-        if self.weights is not None and len(self.weights) != len(self.estimators):
+        if self.weights is not None and len(self.weights) > len(self.estimators):
             raise ValueError(
                 "Number of `estimators` and weights must be equal; got"
                 f" {len(self.weights)} weights, {len(self.estimators)} estimators"
