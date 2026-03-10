@@ -2431,3 +2431,19 @@ def test_set_score_request_with_default_scoring(metaestimator, make_dataset):
 
 # End of Metadata Routing Tests
 # =============================
+
+
+def test_ridgecv_followup_smoke():
+    rng = np.random.RandomState()
+    X = rng.randn(12, 4)
+    y = rng.randn(12)
+    sample_weight = np.ones(X.shape[0])
+    sample_weight[0] = 0
+
+    ridge = RidgeCV(alphas=[0.1, 1.0], store_cv_results=True)
+    for _ in range(3):
+        ridge.fit(X, y, sample_weight=sample_weight)
+
+    assert ridge.cv_results_.shape[0] == X.shape[0]
+    assert ridge.alpha_ in {0.1, 1.0}
+    assert ridge.best_score_ is not None
