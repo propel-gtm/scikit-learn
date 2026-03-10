@@ -11,7 +11,6 @@ from scipy.stats import bernoulli
 
 from sklearn import datasets, svm
 from sklearn.base import config_context
-from sklearn.calibration import CalibratedClassifierCV
 from sklearn.datasets import make_multilabel_classification
 from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import (
@@ -101,9 +100,7 @@ def make_prediction(dataset=None, binary=False):
     X = np.c_[X, rng.randn(n_samples, 200 * n_features)]
 
     # run classifier, get class probabilities and label predictions
-    clf = CalibratedClassifierCV(
-        svm.SVC(kernel="linear", random_state=0), ensemble=False, cv=3
-    )
+    clf = svm.SVC(kernel="linear", probability=True, random_state=0)
     y_pred_proba = clf.fit(X[:half], y[:half]).predict_proba(X[half:])
 
     if binary:
