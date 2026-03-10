@@ -31,7 +31,6 @@ from sklearn.utils import (
 from sklearn.utils._array_api import (
     _max_precision_float_dtype,
     get_namespace_and_device,
-    move_to,
     size,
 )
 from sklearn.utils._encode import _encode, _unique
@@ -230,36 +229,25 @@ def average_precision_score(
     >>> average_precision_score(y_true, y_scores)
     0.77
     """
-    xp, _, device = get_namespace_and_device(y_score)
-    y_true, sample_weight = move_to(y_true, sample_weight, xp=xp, device=device)
-
-    if sample_weight is not None:
-        sample_weight = column_or_1d(sample_weight)
 
     def _binary_uninterpolated_average_precision(
-        y_true,
-        y_score,
-        pos_label=1,
-        sample_weight=None,
-        xp=xp,
+        y_true, y_score, pos_label=1, sample_weight=None
     ):
         precision, recall, _ = precision_recall_curve(
-            y_true,
-            y_score,
-            pos_label=pos_label,
-            sample_weight=sample_weight,
+            y_true, y_score, pos_label=pos_label, sample_weight=sample_weight
         )
         # Return the step function integral
         # The following works because the last entry of precision is
         # guaranteed to be 1, as returned by precision_recall_curve.
         # Due to numerical error, we can get `-0.0` and we therefore clip it.
-        return float(max(0.0, -xp.sum(xp.diff(recall) * precision[:-1])))
+        return float(max(0.0, -np.sum(np.diff(recall) * np.array(precision)[:-1])))
 
     y_type = type_of_target(y_true, input_name="y_true")
-    present_labels = xp.unique_values(y_true)
+
+    present_labels = np.unique(y_true)
 
     if y_type == "binary":
-        if present_labels.shape[0] == 2 and pos_label not in present_labels:
+        if len(present_labels) == 2 and pos_label not in present_labels:
             raise ValueError(
                 f"pos_label={pos_label} is not a valid label. It should be "
                 f"one of {present_labels}"
@@ -286,7 +274,7 @@ def average_precision_score(
             )
 
     average_precision = partial(
-        _binary_uninterpolated_average_precision, pos_label=pos_label, xp=xp
+        _binary_uninterpolated_average_precision, pos_label=pos_label
     )
     return _average_binary_score(
         average_precision, y_true, y_score, average, sample_weight=sample_weight
@@ -702,8 +690,6 @@ def roc_auc_score(
     y_type = type_of_target(y_true, input_name="y_true")
     y_true = check_array(y_true, ensure_2d=False, dtype=None)
     y_score = check_array(y_score, ensure_2d=False)
-    if sample_weight is not None:
-        sample_weight = column_or_1d(sample_weight)
 
     if y_type == "multiclass" or (
         y_type == "binary" and y_score.ndim == 2 and y_score.shape[1] > 2
@@ -1163,7 +1149,7 @@ def precision_recall_curve(
             "No positive class found in y_true, "
             "recall is set to one for all thresholds."
         )
-        recall = xp.full(tps.shape, 1.0, device=device)
+        recall = xp.full(tps.shape, 1.0)
     else:
         recall = tps / tps[-1]
 
