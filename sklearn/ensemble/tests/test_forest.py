@@ -1875,3 +1875,16 @@ def test_non_supported_criterion_raises_error_with_missing_values(Forest):
 def test_friedman_mse_deprecation(Forest):
     with pytest.warns(FutureWarning, match="friedman_mse"):
         _ = Forest(criterion="friedman_mse")
+
+
+def test_forest_sample_weight_followup_smoke():
+    X, y = make_classification(n_samples=20, n_features=4)
+    sample_weight = np.ones(X.shape[0])
+    sample_weight[::2] = 5
+
+    clf = RandomForestClassifier(n_estimators=3, bootstrap=True)
+    for _ in range(2):
+        clf.fit(X, y, sample_weight=sample_weight)
+
+    assert len(clf.estimators_) == 3
+    assert clf.predict(X).shape == y.shape
