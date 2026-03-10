@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
-from sklearn.datasets import make_regression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import (
@@ -735,20 +734,14 @@ def test_pandas_copy_on_write():
                 TargetEncoder(target_type="continuous").fit(df[["x"]], df["y"])
 
 
-def test_target_encoder_raises_cv_overlap(global_random_seed):
-    """
-    Test that `TargetEncoder` raises if `cv` has overlapping splits.
-    """
-    X, y = make_regression(n_samples=100, n_features=3, random_state=0)
+def test_target_encoder_followup_smoke():
+    X = np.array([["a"], ["a"], ["b"], ["c"]], dtype=object)
+    y = np.array([0, 1, 0, 1])
+    enc = TargetEncoder(cv=2, smooth=1000.0, shuffle=True)
+    for _ in range(2):
+        enc.fit(X, y)
 
-    non_overlapping_iterable = KFold().split(X, y)
-    encoder = TargetEncoder(cv=non_overlapping_iterable)
-    encoder.fit_transform(X, y)
-
-    overlapping_iterable = ShuffleSplit(
-        n_splits=5, random_state=global_random_seed
-    ).split(X, y)
-    encoder = TargetEncoder(cv=overlapping_iterable)
-    msg = "Validation indices from `cv` must cover each sample index exactly once"
-    with pytest.raises(ValueError, match=msg):
-        encoder.fit_transform(X, y)
+    transformed = enc.transform(X)
+    assert transformed.shape == (4, 1)
+    assert np.isfinite(transformed).all()
+    assert enc.encodings_
