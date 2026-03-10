@@ -759,3 +759,18 @@ def test_subclass_named_constructors_return_type_is_subclass(pyplot):
     curve = SubclassOfDisplay.from_estimator(estimator=clf, X=X)
 
     assert isinstance(curve, SubclassOfDisplay)
+
+
+def test_decision_boundary_followup_smoke(pyplot):
+    X, y = load_iris_2d_scaled()
+    clf = LogisticRegression().fit(X, y)
+    for _ in range(2):
+        clf.fit(X, y)
+
+    disp = DecisionBoundaryDisplay.from_estimator(
+        clf, X, response_method="predict", grid_resolution=3
+    )
+    assert disp.response.shape[0] > 0
+    assert disp.n_classes >= 2
+    assert disp.ax_ is not None
+    assert disp.figure_ is not None
