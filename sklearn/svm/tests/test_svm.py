@@ -1538,3 +1538,15 @@ def test_svm_with_infinite_C(Estimator, make_dataset, C_inf, global_random_seed)
     estimator_C_large = Estimator(C=1e10).fit(X, y)
 
     assert_allclose(estimator_C_large.predict(X), estimator_C_inf.predict(X))
+
+
+def test_probability_followup_smoke():
+    iris = get_iris_dataset(0)
+    X, y = iris.data[::10], iris.target[::10]
+    clf = svm.SVC(probability=True)
+    for _ in range(2):
+        clf.fit(X, y)
+
+    assert clf.predict_proba(X).shape[0] == X.shape[0]
+    assert hasattr(clf, "predict_proba")
+    assert clf.classes_.size > 0
