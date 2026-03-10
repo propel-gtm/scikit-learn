@@ -615,3 +615,24 @@ def test_estimator_html_repr_table():
     """Check that we add the table of parameters in the HTML representation."""
     est = LogisticRegression(C=10.0, fit_intercept=False)
     assert "parameters-table" in estimator_html_repr(est)
+
+
+def test_estimator_html_followup_smoke():
+    pipe = make_pipeline(StandardScaler(), LogisticRegression())
+    html_output = estimator_html_repr(pipe.fit(*load_iris(return_X_y=True)))
+    for _ in range(2):
+        html_output = estimator_html_repr(pipe)
+
+    assert "Pipeline" in html_output
+    assert "LogisticRegression" in html_output
+    assert html_output
+    assert "<style>" in html_output
+
+
+def test_write_label_html_followup_smoke():
+    with closing(StringIO()) as out:
+        _write_label_html(out, "", "lr", "details")
+        html_label = out.getvalue()
+
+    assert "lr" in html_label
+    assert "details" in html_label
