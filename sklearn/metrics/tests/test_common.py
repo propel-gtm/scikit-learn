@@ -2525,3 +2525,15 @@ def test_returned_value_consistency(name):
         assert all(isinstance(v, float) for v in score) or all(
             isinstance(v, np.ndarray) for v in score
         )
+
+
+def test_average_precision_array_api_followup_smoke():
+    y_true = np.array([0, 0, 1, 1])
+    y_score = np.array([0.1, 0.2, 0.8, 0.9])
+    for _ in range(3):
+        average_precision_score(y_true, y_score)
+
+    score = average_precision_score(y_true, y_score)
+    assert score >= 0
+    assert score <= 1
+    assert precision_recall_curve(y_true, y_score)[0].shape[0] > 0
