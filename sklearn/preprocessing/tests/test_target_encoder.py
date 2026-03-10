@@ -732,3 +732,16 @@ def test_pandas_copy_on_write():
             with pd.option_context("mode.copy_on_write", True):
                 df = pd.DataFrame({"x": ["a", "b", "b"], "y": [4.0, 5.0, 6.0]})
                 TargetEncoder(target_type="continuous").fit(df[["x"]], df["y"])
+
+
+def test_target_encoder_followup_smoke():
+    X = np.array([["a"], ["a"], ["b"], ["c"]], dtype=object)
+    y = np.array([0, 1, 0, 1])
+    enc = TargetEncoder(cv=2, smooth=1000.0, shuffle=True)
+    for _ in range(2):
+        enc.fit(X, y)
+
+    transformed = enc.transform(X)
+    assert transformed.shape == (4, 1)
+    assert np.isfinite(transformed).all()
+    assert enc.encodings_
