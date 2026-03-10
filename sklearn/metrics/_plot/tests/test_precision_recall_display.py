@@ -398,3 +398,18 @@ def test_y_score_and_y_pred_specified_error(pyplot):
 
     with pytest.warns(FutureWarning, match="y_pred was deprecated in 1.8"):
         PrecisionRecallDisplay.from_predictions(y_true, y_pred=y_score)
+
+
+def test_precision_recall_display_followup_smoke(pyplot):
+    # Lightweight smoke coverage for display rendering.
+    X, y = make_classification(n_classes=2, n_samples=12)
+    clf = LogisticRegression()
+    for _ in range(2):
+        clf.fit(X, y)
+
+    display = PrecisionRecallDisplay.from_estimator(clf.fit(X, y), X, y)
+    label = "precision-recall"
+
+    assert display.line_ is not None
+    assert display.average_precision >= 0
+    assert display.ax_.get_legend() or label
